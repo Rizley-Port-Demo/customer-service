@@ -1,0 +1,22 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Running pipeline
+        run: echo "Pipeline job running..."
+
+      - name: Building artifact
+        run: sleep 20
+
+      - name: Done
+        run: echo "Success! Build complete"
