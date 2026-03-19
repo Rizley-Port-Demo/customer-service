@@ -1,0 +1,62 @@
+name: Deploy S3 Bucket
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: "us-east-1"
+        type: string
+      action:
+        description: "Deploy or destroy"
+        required: true
+        type: choice
+        options:
+          - deploy
+          - destroy
+
+env:
+  STACK_NAME: "customer-service-s3-stack"
+
+jobs:
+  deploy-s3:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:           aws-secret-access-key:           aws-region: 
+      - name: Deploy stack
+        if: inputs.action == 'deploy'
+        run: |
+          aws cloudformation deploy \
+            --template-file .github/cloudformation/s3-bucket.yml \
+            --stack-name \ \
+            --no-fail-on-empty-changeset
+
+      - name: Print stack outputs
+        if: inputs.action == 'deploy'
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name \ \
+            --query "Stacks[0].Outputs" \
+            --output table
+
+      - name: Empty bucket before destroy
+        if: inputs.action == 'destroy'
+        run: |
+          BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name \ \
+            --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" \
+            --output text)
+          aws s3 rm s3://$BUCKET --recursive
+
+      - name: Destroy stack
+        if: inputs.action == 'destroy'
+        run: |
+          aws cloudformation delete-stack --stack-name           aws cloudformation wait stack-delete-complete --stack-name           echo "Stack deleted."
