@@ -1,0 +1,76 @@
+name: Deploy EKS Cluster
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region to deploy into"
+        required: true
+        default: "us-east-1"
+        type: string
+      stack_name:
+        description: "CloudFormation stack name"
+        required: true
+        default: "flask-eks-stack"
+        type: string
+      action:
+        description: "Deploy or destroy the stack"
+        required: true
+        type: choice
+        options:
+          - deploy
+          - destroy
+
+jobs:
+  deploy-eks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: 
+          aws-secret-access-key: 
+          aws-region: 
+
+      - name: Deploy stack
+        if: inputs.action == 'deploy'
+        run: |
+          aws cloudformation deploy \
+            --template-file .github/cloudformation/eks-cluster.yml \
+            --stack-name  \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Print cluster outputs
+        if: inputs.action == 'deploy'
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name  \
+            --query "Stacks[0].Outputs" \
+            --output table
+
+      - name: Update kubeconfig
+        if: inputs.action == 'deploy'
+        run: |
+          CLUSTER=$(aws cloudformation describe-stacks \
+            --stack-name  \
+            --query "Stacks[0].Outputs[?OutputKey=='ClusterName'].OutputValue" \
+            --output text)
+          aws eks update-kubeconfig \
+            --region  \
+            --name "$CLUSTER"
+          kubectl get nodes
+
+      - name: Destroy stack
+        if: inputs.action == 'destroy'
+        run: |
+          aws cloudformation delete-stack \
+            --stack-name 
+          echo "Waiting for stack deletion..."
+          aws cloudformation wait stack-delete-complete \
+            --stack-name 
+          echo "Stack deleted."
